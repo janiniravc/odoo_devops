@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Odoo 18 Project Estimation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Slate & Teal -->
+    <!-- Application Structure Plan: A dashboard-style SPA. The structure prioritizes usability by presenting information hierarchically. It starts with a high-level summary (Key Metrics), followed by a visual breakdown of effort (Effort Distribution Chart), and finally allows for deep dives into specific modules via an interactive tabbed interface (Detailed Breakdown). This top-down approach allows users to grasp the overall scope quickly and then explore areas of interest without being overwhelmed by the full detail at once. The flow is designed for progressive disclosure of information, which is ideal for complex data like this project estimation. -->
+    <!-- Visualization & Content Choices: 
+        - Key Metrics: Goal: Inform. Method: Styled cards with large numbers and icons (Unicode). Interaction: Simple hover effects. Justification: Provides an immediate, scannable overview of the project's scale.
+        - Effort Distribution: Goal: Compare/Analyze. Method: Chart.js Donut Chart. Interaction: Buttons to toggle between Min/Max/Average hours, updating the chart dynamically. Clicking a segment scrolls to the relevant detail section. Justification: Visually communicates the primary effort drivers in the project. Interactivity allows for nuanced analysis of the estimation range.
+        - Detailed Breakdown: Goal: Organize/Detail. Method: Tabbed navigation with HTML tables. Visual cues (colored dots) indicate gap status. Interaction: Clicking tabs reveals corresponding module details. Justification: Organizes a large amount of tabular data into manageable, thematic sections, preventing information overload.
+        - Critical Questions: Goal: Highlight Risks. Method: Styled list in a prominent card. Justification: Elevates critical project risks from the body of the report to a high-visibility area.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .tab-active {
+            background-color: #0d9488; /* teal-600 */
+            color: white;
+            border-color: #0d9488;
+        }
+        .tab-inactive {
+            background-color: white;
+            color: #334155; /* slate-700 */
+            border-color: #cbd5e1; /* slate-300 */
+        }
+        .smooth-scroll {
+            scroll-behavior: smooth;
+        }
+        .gap-standard {
+            color: #10b981; /* emerald-500 */
+        }
+        .gap-partial {
+            color: #f59e0b; /* amber-500 */
+        }
+        .gap-full {
+            color: #ef4444; /* red-500 */
+        }
+    </style>
+</head>
+<body class="text-slate-800 smooth-scroll">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Odoo 18 Community Edition Project Estimation</h1>
+            <p class="mt-2 text-lg text-slate-600">Interactive Dashboard for Qatar Implementation</p>
+        </header>
+
+        <main>
+            <!-- Key Metrics Section -->
+            <section id="summary" class="mb-12">
+                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex items-center space-x-4">
+                        <div class="bg-teal-100 p-3 rounded-full">
+                            <span class="text-2xl text-teal-600">⏱️</span>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">Total Minimum Hours</p>
+                            <p id="totalMinHours" class="text-2xl font-bold text-slate-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex items-center space-x-4">
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <span class="text-2xl text-red-600">📈</span>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">Total Maximum Hours</p>
+                            <p id="totalMaxHours" class="text-2xl font-bold text-slate-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex items-center space-x-4">
+                        <div class="bg-sky-100 p-3 rounded-full">
+                            <span class="text-2xl text-sky-600">📦</span>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">Modules & Features</p>
+                            <p id="totalFeatures" class="text-2xl font-bold text-slate-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex items-center space-x-4">
+                        <div class="bg-amber-100 p-3 rounded-full">
+                            <span class="text-2xl text-amber-600">🧩</span>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">Custom Development Gaps</p>
+                            <p id="totalGaps" class="text-2xl font-bold text-slate-900">0</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Effort Distribution Section -->
+            <section class="mb-12 bg-white p-6 md:p-8 rounded-xl shadow-md border border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-900 mb-1">Effort Distribution by Area</h2>
+                <p class="text-slate-600 mb-6">This chart shows the estimated work hours distributed across the project's main functional areas. Use the buttons to switch between minimum, maximum, and average estimates. Click a segment to jump to the detailed breakdown.</p>
+                <div class="flex justify-center mb-6 space-x-2">
+                    <button id="btn-min" class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200">Minimum</button>
+                    <button id="btn-avg" class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200">Average</button>
+                    <button id="btn-max" class="px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200">Maximum</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="effortChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Detailed Breakdown Section -->
+            <section id="details" class="bg-white p-6 md:p-8 rounded-xl shadow-md border border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-900 mb-1">Detailed Module Breakdown</h2>
+                <p class="text-slate-600 mb-6">Explore the specific functional requirements, gap analysis, and hour estimates for each module. Select a tab to view details.</p>
+                
+                <div class="mb-6 border-b border-slate-200">
+                    <nav id="tab-nav" class="flex flex-wrap -mb-px" aria-label="Tabs">
+                    </nav>
+                </div>
+                
+                <div id="tab-content">
+                </div>
+            </section>
+            
+            <!-- Critical Questions Section -->
+            <section id="questions" class="mt-12">
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
+                    <h3 class="text-xl font-bold text-amber-900 flex items-center">
+                        <span class="text-2xl mr-3">⚠️</span>
+                        Critical Clarifying Questions
+                    </h3>
+                    <p class="text-amber-800 mt-2 mb-4">The following questions from the report are critical to resolve for accurate project scoping and success. Addressing these will refine the estimations and mitigate risks.</p>
+                    <ul id="critical-questions-list" class="list-disc pl-5 space-y-2 text-amber-700">
+                    </ul>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="text-center mt-12 pt-8 border-t border-slate-200">
+            <p class="text-slate-500">Generated Interactive Report | July 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectData = {
+                "Platform & Core": [
+                    { func: "Initial Setup & Platform Configuration", odoo: "Basic setup, multi-currency, fiscal year", gap: "Hosting in Jusour Datacentre, MOTC compliance", min: 80, max: 160, gapStatus: 'partial' },
+                    { func: "Dual-Language & RTL Support", odoo: "Standard Arabic language & RTL UI", gap: "Full RTL mirroring for all elements, Arabic numerals, legal precedence in docs", min: 120, max: 240, gapStatus: 'partial' },
+                    { func: "Hijri Calendar Support", odoo: "No native support", gap: "Custom module for dual calendar display (Umm Al-Qura), auto-conversion", min: 80, max: 160, gapStatus: 'full' }
+                ],
+                "Advanced Solutions": [
+                    { func: "AI Capabilities (System-wide)", odoo: "Limited features in CE", gap: "OCR, Email Intelligence, Lead Scoring, Chatbots, Voice-to-Text (all for Arabic)", min: 400, max: 800, gapStatus: 'full' },
+                    { func: "Digital Signature Solution", odoo: "Not included in CE", gap: "Legally binding signatures, full audit trail, multi-signer workflows, mobile support", min: 320, max: 640, gapStatus: 'full' }
+                ],
+                "HR & Payroll": [
+                    { func: "Qatar-specific Employment Contracts", odoo: "Basic contract management", gap: "Templates compliant with MOADLSA & Labor Law", min: 40, max: 80, gapStatus: 'partial' },
+                    { func: "Work/Residency Permit Tracking", odoo: "Basic expiry date fields", gap: "Automated tracking with configurable alerts", min: 30, max: 60, gapStatus: 'partial' },
+                    { func: "Heat Stress Regulation Integration", odoo: "None", gap: "Auto-restriction of outdoor work scheduling", min: 60, max: 120, gapStatus: 'full' },
+                    { func: "Qatarization Compliance Tracking", odoo: "None", gap: "Reporting on national vs. expatriate ratios", min: 40, max: 80, gapStatus: 'full' },
+                    { func: "Recruitment & Visa Workflow", odoo: "Basic recruitment", gap: "Visa processing workflow management, termination calculations", min: 100, max: 200, gapStatus: 'partial' },
+                    { func: "WPS Integration (SIF Generation)", odoo: "None for Qatar", gap: "Full SIF generation for QNB, QIB, CBQ; 15 mandatory fields", min: 200, max: 400, gapStatus: 'full' },
+                    { func: "End-of-Service Benefit (EOSB)", odoo: "None for Qatar law", gap: "Tiered calculation (21/30 days) with monthly accrual", min: 120, max: 240, gapStatus: 'full' },
+                    { func: "Minimum Wage Enforcement", odoo: "None for Qatar law", gap: "Auto-validation of QAR 1,800 total package", min: 80, max: 160, gapStatus: 'full' },
+                    { func: "Qatar-specific Overtime", odoo: "Basic rules", gap: "Rates for 125%, 150% (night), 250% (weekend)", min: 70, max: 140, gapStatus: 'partial' },
+                    { func: "WPS Compliance Tracking", odoo: "None", gap: "Real-time status tracking, 7-day payment alerts", min: 100, max: 200, gapStatus: 'full' }
+                ],
+                "Finance & Accounting": [
+                    { func: "Qatar Chart of Accounts (COA)", odoo: "Customizable COA", gap: "Full IFRS/QFRS compliant COA with dual-language names", min: 150, max: 300, gapStatus: 'partial' },
+                    { func: "Tax & Transfer Pricing", odoo: "Basic tax engine", gap: "10% corporate tax, VAT readiness, transfer pricing threshold monitoring", min: 120, max: 240, gapStatus: 'partial' },
+                    { func: "Dhareeba Tax Portal Integration", odoo: "None", gap: "API integration for e-filing and payments", min: 160, max: 320, gapStatus: 'full' },
+                    { func: "Withholding Tax Automation", odoo: "Basic feature", gap: "Automated 5% calculation with treaty rate overrides", min: 100, max: 200, gapStatus: 'partial' },
+                    { func: "E-invoicing (Qatar Spec)", odoo: "QR code support", gap: "Arabic templates, dual-language, digital stamp prep", min: 100, max: 200, gapStatus: 'partial' }
+                ],
+                "Sales, CRM & Inventory": [
+                    { func: "CRM - Qatar Business IDs", odoo: "Customizable fields", gap: "Separate Arabic/English name fields, CR tracking", min: 70, max: 140, gapStatus: 'partial' },
+                    { func: "Sales - MOCI Compliant Invoices", odoo: "Standard invoices", gap: "Mandatory Arabic content, specific layouts", min: 60, max: 120, gapStatus: 'partial' },
+                    { func: "Inventory - QFRS Costing", odoo: "FIFO/LIFO available", gap: "Verification of compliance with Qatar Financial Reporting Standards", min: 40, max: 80, gapStatus: 'partial' }
+                ],
+                "Integrations & Other": [
+                    { func: "WPS Bank Integration", odoo: "None", gap: "Automated SIF generation and upload/status tracking for banks", min: 240, max: 480, gapStatus: 'full' },
+                    { func: "Government Portal Integrations", odoo: "None", gap: "APIs for MOADLSA, Mol, MoCI, Hukoomi etc.", min: 400, max: 800, gapStatus: 'full' },
+                    { func: "Project Management & Contingency", odoo: "N/A", gap: "PM effort and 15-25% contingency buffer", min: 660, max: 1320, gapStatus: 'full' }
+                ]
+            };
+            
+            const criticalQuestions = [
+                "<b>Odoo Edition Discrepancy:</b> The report notes a conflict between 'Enterprise' in the summary and 'Community' in the requirements. Which edition should be used?",
+                "<b>Government API Availability:</b> Are there documented, public APIs for MOADLSA, Mol, Dhareeba, and other government portals?",
+                "<b>WPS Bank Integration Details:</b> What is the preferred integration method (API, SFTP, manual) for each bank (QNB, QIB, CBQ)?",
+                "<b>Digital Signature Legal Requirements:</b> What are the specific laws and certifications for legally binding e-signatures in Qatar?",
+                "<b>Qatar-Specific Regulatory Details:</b> Can sample documents or detailed specifications be provided for MOCI invoices, QFRS standards, etc.?"
+            ];
+
+            let totalMin = 0;
+            let totalMax = 0;
+            let totalFeatures = 0;
+            let totalGaps = 0;
+
+            const categoryTotals = {};
+
+            Object.keys(projectData).forEach(category => {
+                categoryTotals[category] = { min: 0, max: 0, avg: 0 };
+                projectData[category].forEach(item => {
+                    totalMin += item.min;
+                    totalMax += item.max;
+                    totalFeatures++;
+                    if (item.gapStatus === 'full' || item.gapStatus === 'partial') {
+                        totalGaps++;
+                    }
+                    categoryTotals[category].min += item.min;
+                    categoryTotals[category].max += item.max;
+                });
+                categoryTotals[category].avg = (categoryTotals[category].min + categoryTotals[category].max) / 2;
+            });
+
+            document.getElementById('totalMinHours').textContent = totalMin.toLocaleString();
+            document.getElementById('totalMaxHours').textContent = totalMax.toLocaleString();
+            document.getElementById('totalFeatures').textContent = totalFeatures;
+            document.getElementById('totalGaps').textContent = totalGaps;
+
+            const questionsList = document.getElementById('critical-questions-list');
+            criticalQuestions.forEach(q => {
+                const li = document.createElement('li');
+                li.innerHTML = q;
+                questionsList.appendChild(li);
+            });
+
+            const effortChartCtx = document.getElementById('effortChart').getContext('2d');
+            let effortChart;
+
+            const chartColors = [
+                '#14b8a6', // teal-500
+                '#0d9488', // teal-600
+                '#f97316', // orange-500
+                '#3b82f6', // blue-500
+                '#6366f1', // indigo-500
+                '#8b5cf6', // violet-500
+                '#ec4899'  // pink-500
+            ];
+
+            function createOrUpdateChart(dataType = 'avg') {
+                const labels = Object.keys(categoryTotals);
+                const data = labels.map(label => categoryTotals[label][dataType]);
+
+                if (effortChart) {
+                    effortChart.data.datasets[0].data = data;
+                    effortChart.update();
+                } else {
+                    effortChart = new Chart(effortChartCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Estimated Hours',
+                                data: data,
+                                backgroundColor: chartColors,
+                                borderColor: '#f8fafc',
+                                borderWidth: 4,
+                                hoverOffset: 16
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '60%',
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        font: {
+                                            size: 14
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed !== null) {
+                                                label += context.parsed.toLocaleString() + ' hrs';
+                                            }
+                                            return label;
+                                        }
+                                    },
+                                    backgroundColor: '#1e293b', // slate-800
+                                    titleFont: { size: 16 },
+                                    bodyFont: { size: 14 },
+                                    padding: 12,
+                                    cornerRadius: 8
+                                }
+                            },
+                            onClick: (event, elements) => {
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const label = effortChart.data.labels[index];
+                                    const tabId = `tab-${label.replace(/[^a-zA-Z0-9]/g, '')}`;
+                                    const tabElement = document.getElementById(tabId);
+                                    if (tabElement) {
+                                        tabElement.click();
+                                        const detailsSection = document.getElementById('details');
+                                        detailsSection.scrollIntoView({ behavior: 'smooth' });
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+            const btnMin = document.getElementById('btn-min');
+            const btnAvg = document.getElementById('btn-avg');
+            const btnMax = document.getElementById('btn-max');
+            
+            function setActiveButton(activeBtn) {
+                [btnMin, btnAvg, btnMax].forEach(btn => btn.classList.remove('tab-active', 'tab-inactive'));
+                [btnMin, btnAvg, btnMax].forEach(btn => {
+                    if (btn === activeBtn) {
+                        btn.classList.add('tab-active');
+                    } else {
+                        btn.classList.add('tab-inactive');
+                    }
+                });
+            }
+
+            btnMin.addEventListener('click', () => { createOrUpdateChart('min'); setActiveButton(btnMin); });
+            btnAvg.addEventListener('click', () => { createOrUpdateChart('avg'); setActiveButton(btnAvg); });
+            btnMax.addEventListener('click', () => { createOrUpdateChart('max'); setActiveButton(btnMax); });
+
+            createOrUpdateChart('avg');
+            setActiveButton(btnAvg);
+
+            const tabNav = document.getElementById('tab-nav');
+            const tabContent = document.getElementById('tab-content');
+            
+            Object.keys(projectData).forEach((category, index) => {
+                const tabId = `tab-${category.replace(/[^a-zA-Z0-9]/g, '')}`;
+                const contentId = `content-${category.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+                const button = document.createElement('button');
+                button.id = tabId;
+                button.className = `tab-button text-sm font-medium text-center px-4 py-3 border-b-2 rounded-t-lg transition-colors duration-200 ${index === 0 ? 'tab-active' : 'tab-inactive'}`;
+                button.textContent = category;
+                button.setAttribute('role', 'tab');
+                button.setAttribute('aria-controls', contentId);
+                button.setAttribute('aria-selected', index === 0);
+                tabNav.appendChild(button);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.id = contentId;
+                contentDiv.className = `tab-pane ${index === 0 ? '' : 'hidden'}`;
+                contentDiv.setAttribute('role', 'tabpanel');
+                
+                const table = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Functionality</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Odoo CE Standard</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Gap to be Developed</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider text-right">Min Hrs</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider text-right">Max Hrs</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-200">
+                                ${projectData[category].map(item => `
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.func}</td>
+                                        <td class="px-6 py-4 whitespace-normal text-sm text-slate-500">${item.odoo}</td>
+                                        <td class="px-6 py-4 whitespace-normal text-sm text-slate-500 flex items-start">
+                                            <span class="mr-2 text-lg gap-${item.gapStatus}" title="${item.gapStatus.charAt(0).toUpperCase() + item.gapStatus.slice(1)} Gap">●</span>
+                                            <span>${item.gap}</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">${item.min}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 text-right">${item.max}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                contentDiv.innerHTML = table;
+                tabContent.appendChild(contentDiv);
+            });
+            
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('tab-inactive');
+                        btn.setAttribute('aria-selected', false);
+                    });
+                    button.classList.add('tab-active');
+                    button.classList.remove('tab-inactive');
+                    button.setAttribute('aria-selected', true);
+                    
+                    tabPanes.forEach(pane => {
+                        if (pane.id === button.getAttribute('aria-controls')) {
+                            pane.classList.remove('hidden');
+                        } else {
+                            pane.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
